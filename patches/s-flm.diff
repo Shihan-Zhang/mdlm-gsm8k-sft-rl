@@ -1,0 +1,149 @@
+diff --git a/dataloader.py b/dataloader.py
+index 4c96ae1..b42dcdf 100644
+--- a/dataloader.py
++++ b/dataloader.py
+@@ -386,17 +386,28 @@ def get_tiny_gsm_dataset(config, tokenizer):
+   wrap_tag = '_wrapped' if config.data.wrap else ''
+   train_on_pad = '_train_on_pad' if config.data.train_on_pad else ''
+   tokenizer_tag = config.data.tokenizer_name_or_path.replace('/', '__')
++  # [SFT patch] optional local JSON with fields question/code; cache key includes file hash
++  sft_path = config.data.get('sft_json_path', None)
++  sft_tag = ''
++  if sft_path:
++    import hashlib
++    with open(sft_path, 'rb') as f:
++      sft_tag = '_sft_' + hashlib.md5(f.read()).hexdigest()[:12]
+   save_dir = (f'{config.data.cache_dir}/tiny_gsm_bs{config.model.length}'
+-              f'_{mask_tag}{filter_tag}{wrap_tag}{train_on_pad}_{tokenizer_tag}')
++              f'_{mask_tag}{filter_tag}{wrap_tag}{train_on_pad}_{tokenizer_tag}{sft_tag}')
+   split_names = ['train', 'validation']
+   if not all([
+     utils.fsspec_exists(os.path.join(save_dir, split))
+     for split in split_names
+   ]):
+     LOGGER.info('Preparing TinyGSM dataset.')
+-    ds = datasets.load_dataset(
+-      'TinyGSM/TinyGSM', split='train', 
+-      cache_dir=config.data.cache_dir)
++    if sft_path:  # [SFT patch]
++      LOGGER.info(f'Loading SFT data from local JSON: {sft_path}')
++      ds = datasets.load_dataset('json', data_files=sft_path, split='train')
++    else:
++      ds = datasets.load_dataset(
++        'TinyGSM/TinyGSM', split='train',
++        cache_dir=config.data.cache_dir)
+ 
+     EOS = tokenizer.eos_token_id
+     BOS = tokenizer.bos_token_id
+diff --git a/main.py b/main.py
+index 08307c1..0b653af 100644
+--- a/main.py
++++ b/main.py
+@@ -302,6 +302,12 @@ def _train(diffusion_model, config, logger, tokenizer):
+       config.training.finetune_path,
+       tokenizer=tokenizer,
+       config=config)
++    # [SFT patch] start from checkpoint EMA weights (= what eval used), then disable EMA
++    if config.training.get('finetune_init_from_ema', False):
++      assert model.ema is not None, 'checkpoint EMA not loaded'
++      model.ema.copy_to(model._get_parameters())
++      model.ema = None
++      print('[SFT patch] initialized weights from checkpoint EMA; EMA disabled')
+   else:
+     model = diffusion_model(config, 
+                             tokenizer=valid_ds.tokenizer)
+diff --git a/samplers.py b/samplers.py
+index 3976b8b..6817490 100644
+--- a/samplers.py
++++ b/samplers.py
+@@ -440,6 +440,76 @@ class AncestralSampler(Sampler):
+       state.done = True
+     return state
+ 
++# [confidence patch] ---------------------------------------------------------
++def _confidence_update(log_probs, current_tokens, mask_index, alpha_s, alpha_t,
++                       *, is_last_step, value_greedy):
++  """Reveal the most confident masked positions first (LLaDA-style low-confidence remasking).
++
++  The number revealed per sequence matches the ancestral sampler in expectation:
++  k = round(#masked * (alpha_s - alpha_t) / (1 - alpha_t)); the last step reveals all.
++  Only WHICH positions are revealed changes: highest probability of their drawn token first.
++  """
++  masked = current_tokens == mask_index
++  if value_greedy:
++    cand = log_probs.argmax(dim=-1)
++  else:
++    cand = sample_categorical(log_probs.exp())
++  conf = log_probs.gather(-1, cand.unsqueeze(-1)).squeeze(-1)
++  conf = conf.masked_fill(~masked, float('-inf'))
++  n_masked = masked.sum(dim=-1)
++  if is_last_step:
++    k = n_masked
++  else:
++    frac = ((alpha_s - alpha_t) / (1 - alpha_t)).reshape(-1).to(conf.dtype)
++    k = torch.round(n_masked.to(conf.dtype) * frac).long()
++    k = torch.minimum(torch.clamp(k, min=0), n_masked)
++  order = conf.argsort(dim=-1, descending=True)
++  ranks = torch.empty_like(order)
++  ranks.scatter_(-1, order, torch.arange(order.shape[-1], device=order.device).expand_as(order).contiguous())
++  select = masked & (ranks < k.unsqueeze(-1))
++  return torch.where(select, cand, current_tokens)
++
++
++class ConfidenceSampler(AncestralSampler):
++  """Same schedule as AncestralSampler; reveals the most confident masked positions first."""
++
++  def __init__(self, use_float64=False, steps_policy='full',
++               temperature=1.0, value_greedy=False):
++    super().__init__(use_float64=use_float64, noise_removal='ancestral',
++                     steps_policy=steps_policy, temperature=temperature)
++    self.value_greedy = value_greedy
++
++  def step(self, model, state):
++    num_steps = len(state.timesteps) - 1
++    is_last_step = (state.step_idx == num_steps - 1)
++    t = state.timesteps[state.step_idx] * state.ones
++    s = state.timesteps[state.step_idx + 1] * state.ones
++    _, alpha_t = model.noise(t)
++    if is_last_step:
++      alpha_s = torch.ones_like(alpha_t)
++    else:
++      _, alpha_s = model.noise(s)
++    sigma_t = model._sigma_from_alphat(alpha_t)
++    log_probs = _maybe_cast_log_probs(
++      model.forward(xt=state.xt, sigma=sigma_t,
++                    context=AncestralContext(temperature=self.temperature)),
++      self.use_float64)
++    current_tokens = state.xt[:, state.start_idx:]
++    log_probs_window = log_probs[:, state.start_idx:]
++    current_tokens[:] = _confidence_update(
++      log_probs_window, current_tokens, _model_mask_index(model),
++      alpha_s, alpha_t, is_last_step=is_last_step,
++      value_greedy=self.value_greedy)
++    self._project_prefix(state.xt, state.prefix_tokens,
++                         state.prefix_lengths)
++    state.nfe += 1
++    state.step_idx += 1
++    if is_last_step:
++      state.done = True
++    return state
++# [confidence patch] end -----------------------------------------------------
++
++
+ @dataclass(kw_only=True)
+ class ARState(BaseState):
+   xt: torch.Tensor
+@@ -1039,6 +1109,13 @@ def get_sampler(config):
+       steps_policy=s.steps_policy,
+       temperature=s.temperature)
+ 
++  if s.predictor == 'confidence':  # [confidence patch]
++    return ConfidenceSampler(
++      use_float64=s.use_float64,
++      steps_policy=s.steps_policy,
++      temperature=s.temperature,
++      value_greedy=s.get('value_greedy', False))
++
+   if s.predictor == 'ar':
+     return ARSampler(
+       use_float64=s.use_float64,

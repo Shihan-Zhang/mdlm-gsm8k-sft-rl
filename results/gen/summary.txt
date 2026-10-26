@@ -1,0 +1,54 @@
+
+==== gsmplus: accuracy % [95% CI] and paired change vs the same model on the original test question (pp)
+model     group                                     n     acc              CI    orig   change
+base      adding operation                        150    10.7   [  6.0, 16.0]    34.0    -23.3
+base      digit expansion                         150    29.3   [ 22.0, 36.7]    34.0     -4.7
+base      distraction insertion                   150     9.3   [  5.3, 14.0]    34.0    -24.7
+base      integer-decimal-fraction conversion     150    22.7   [ 16.7, 29.3]    34.0    -11.3
+base      numerical substitution                  150    31.3   [ 24.0, 38.7]    34.0     -2.7
+base      problem understanding                   150    28.7   [ 21.3, 36.0]    34.0     -5.3
+base      reversing operation                     150    13.3   [  8.0, 18.7]    34.0    -20.7
+base      ALL                                    1050    20.8   [ 18.4, 23.3]    34.0    -13.2
+sft       adding operation                        150    18.7   [ 12.7, 24.7]    38.7    -20.0
+sft       digit expansion                         150    36.0   [ 28.7, 44.0]    38.7     -2.7
+sft       distraction insertion                   150    13.3   [  8.0, 19.3]    38.7    -25.3
+sft       integer-decimal-fraction conversion     150    24.7   [ 18.0, 31.3]    38.7    -14.0
+sft       numerical substitution                  150    39.3   [ 31.3, 47.3]    38.7     +0.7
+sft       problem understanding                   150    34.7   [ 27.3, 42.7]    38.7     -4.0
+sft       reversing operation                     150    16.0   [ 10.0, 22.0]    38.7    -22.7
+sft       ALL                                    1050    26.1   [ 23.4, 28.7]    38.7    -12.6
+v1        adding operation                        150    22.0   [ 15.3, 29.3]    44.0    -22.0
+v1        digit expansion                         150    42.7   [ 34.7, 50.7]    44.0     -1.3
+v1        distraction insertion                   150    14.0   [  8.7, 19.3]    44.0    -30.0
+v1        integer-decimal-fraction conversion     150    28.0   [ 20.7, 35.3]    44.0    -16.0
+v1        numerical substitution                  150    36.7   [ 29.3, 44.7]    44.0     -7.3
+v1        problem understanding                   150    38.7   [ 31.3, 46.7]    44.0     -5.3
+v1        reversing operation                     150    22.7   [ 16.7, 30.0]    44.0    -21.3
+v1        ALL                                    1050    29.2   [ 26.5, 32.0]    44.0    -14.8
+v2        adding operation                        150    21.3   [ 15.3, 28.0]    46.7    -25.3
+v2        digit expansion                         150    45.3   [ 38.0, 53.3]    46.7     -1.3
+v2        distraction insertion                   150    12.7   [  7.3, 18.0]    46.7    -34.0
+v2        integer-decimal-fraction conversion     150    26.7   [ 20.0, 34.0]    46.7    -20.0
+v2        numerical substitution                  150    39.3   [ 31.3, 46.7]    46.7     -7.3
+v2        problem understanding                   150    38.0   [ 30.0, 45.3]    46.7     -8.7
+v2        reversing operation                     150    20.7   [ 14.7, 27.3]    46.7    -26.0
+v2        ALL                                    1050    29.1   [ 26.4, 31.9]    46.7    -17.5
+
+==== gsmsym: accuracy % [95% CI] and paired change vs the same model on the original test question (pp)
+model     group                                     n     acc              CI    orig   change
+base      main                                    500    25.0   [ 21.4, 28.8]    30.0     -5.0
+base      p1                                      500    11.6   [  8.8, 14.6]    30.0    -18.4
+base      p2                                      250     0.4   [  0.0,  1.2]    30.0    -29.6
+base      ALL                                    1250    14.7   [ 12.8, 16.7]    30.0    -15.3
+sft       main                                    500    34.8   [ 30.6, 39.0]    36.0     -1.2
+sft       p1                                      500    15.0   [ 11.8, 18.2]    36.0    -21.0
+sft       p2                                      250     2.4   [  0.8,  4.4]    32.0    -29.6
+sft       ALL                                    1250    20.4   [ 18.1, 22.8]    35.2    -14.8
+v1        main                                    500    38.0   [ 34.0, 42.2]    44.0     -6.0
+v1        p1                                      500    22.2   [ 18.6, 25.8]    44.0    -21.8
+v1        p2                                      250     3.2   [  1.2,  5.6]    40.0    -36.8
+v1        ALL                                    1250    24.7   [ 22.4, 27.0]    43.2    -18.5
+v2        main                                    500    37.2   [ 33.0, 41.6]    48.0    -10.8
+v2        p1                                      500    21.4   [ 17.8, 25.0]    48.0    -26.6
+v2        p2                                      250     2.8   [  0.8,  5.2]    46.0    -43.2
+v2        ALL                                    1250    24.0   [ 21.7, 26.4]    47.6    -23.6

@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+*.ckpt
+*.pt
+*.parquet
+outputs/
+eval_runs/
+data_cache*/
+raw/

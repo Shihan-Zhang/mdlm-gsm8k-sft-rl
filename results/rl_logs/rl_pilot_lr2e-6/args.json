@@ -1,0 +1,23 @@
+{
+ "variant": "v1",
+ "init_ckpt": "/root/autodl-tmp/s-flm/outputs/sft_b_ans_lr3e-5_e10/checkpoints/10-1650.ckpt",
+ "out_dir": "/root/autodl-tmp/s-flm/outputs/rl_pilot_lr2e-6",
+ "repo": "/root/autodl-tmp/s-flm",
+ "config_name": "config",
+ "steps": 20,
+ "prompts_per_step": 16,
+ "group": 8,
+ "gen_batch": 32,
+ "micro": 16,
+ "sampling_steps": 128,
+ "lr": 2e-06,
+ "grad_clip": 1.0,
+ "pmin": 0.001,
+ "dps_stride": 8,
+ "dps_lambda": 0.1,
+ "save_every": 1000,
+ "kl_every": 5,
+ "seed": 1234,
+ "pass_rates": "data/sft/b_ans_pass_rates.json",
+ "seen_file": "data/sft/b_ans.jsonl"
+}
