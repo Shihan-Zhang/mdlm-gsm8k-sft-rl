@@ -106,7 +106,7 @@ Evaluate the **base** checkpoint *without* `training.ema=0`, because its weights
 
 ## Compute
 
-Everything ran on one rented RTX 4090. Sampling dominates the cost. An RL step takes 40 s, of which 38 s is generating 128 rollouts with 128 denoising steps. The project generated about 310k solutions in total, more of them for evaluation than for training. The core path alone (RFT → SFT → RL V1 → test) needs under 3 GPU-hours of training plus about 100k generations.
+Everything ran on one rented RTX 4090, for a total of ¥115.29 (about US$16). Sampling dominates the cost. An RL step takes 40 s, of which 38 s is generating 128 rollouts with 128 denoising steps. The project generated about 310k solutions in total, more of them for evaluation than for training. The core path alone (RFT → SFT → RL V1 → test) needs under 3 GPU-hours of training plus about 100k generations.
 
 ## Limitations
 
